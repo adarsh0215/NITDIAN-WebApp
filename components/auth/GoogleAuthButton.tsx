@@ -8,11 +8,7 @@ function getOrigin() {
   return process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 }
 
-type GoogleAuthButtonProps = {
-  next: string; // where to redirect after login/signup
-};
-
-export function GoogleAuthButton({ next }: GoogleAuthButtonProps) {
+export function GoogleAuthButton({ next }: { next: string }) {
   const [loading, setLoading] = React.useState(false);
 
   async function handleClick() {
@@ -34,6 +30,7 @@ export function GoogleAuthButton({ next }: GoogleAuthButtonProps) {
       disabled={loading}
       className="w-full flex items-center justify-center gap-2 rounded-md border px-4 py-2 hover:bg-neutral-50 disabled:opacity-50"
     >
+      {/* Google G */}
       <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 533.5 544.3">
         <path d="M533.5 278.4c0-17.4-1.5-34.1-4.4-50.4H272.1v95.4h147c-6.4 34.9-25.6 64.4-54.5 84.3v69h87.9c51.4-47.3 80-116.9 80-198.3z" fill="#4285f4"/>
         <path d="M272.1 544.3c72.9 0 134.1-24.1 178.8-65.4l-87.9-69c-24.4 16.4-55.7 26-90.9 26-69.9 0-129-47.2-150.2-110.7h-91.4v69.8c44.8 88.4 136.8 149.3 241.6 149.3z" fill="#34a853"/>

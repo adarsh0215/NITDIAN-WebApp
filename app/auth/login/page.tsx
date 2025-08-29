@@ -1,26 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { Suspense } from "react";
 import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 
-// Optional: forces CSR and avoids prerender complaints too.
+// prevent prerender headaches
 export const dynamic = "force-dynamic";
 
-function safePath(raw: string | null): string {
-  if (!raw) return "/dashboard";
-  if (!raw.startsWith("/")) return "/dashboard";
-  return raw;
-}
-
-function LoginInner() {
-  const sp = useSearchParams();
-  const next = safePath(sp.get("next"));
+export default function LoginPage() {
   const router = useRouter();
+  const NEXT = "/dashboard";
 
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -34,14 +26,14 @@ function LoginInner() {
     setLoading(false);
     if (error) return toast.error(error.message);
     toast.success("Logged in");
-    router.replace(next);
+    router.replace(NEXT);
   }
 
   return (
     <main className="mx-auto max-w-sm space-y-6">
       <h1 className="text-2xl font-semibold">Log in</h1>
 
-      <GoogleAuthButton next={next} />
+      <GoogleAuthButton next={NEXT} />
 
       <div className="text-center text-xs text-neutral-500">or</div>
 
@@ -66,8 +58,4 @@ function LoginInner() {
       </p>
     </main>
   );
-}
-
-export default function LoginPage() {
-  return <Suspense fallback={<div className="p-6">Loading…</div>}><LoginInner /></Suspense>;
 }
