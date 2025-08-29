@@ -6,8 +6,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { supabaseBrowser } from "@/lib/supabase/client";
-
-// ✅ Single source of truth for schema + enums
 import {
   OnboardingSchema,
   type OnboardingValues,
@@ -25,7 +23,17 @@ function yearsFrom1965To(limit: number) {
   return arr.reverse();
 }
 
-export default function OnboardingForm({ submitLabel = "Save & continue" }: { submitLabel?: string }) {
+function getErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "string") return err;
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return "Unknown error";
+  }
+}
+
+export default function OnboardingForm() {
   const router = useRouter();
   const supabase = supabaseBrowser();
 
@@ -37,7 +45,7 @@ export default function OnboardingForm({ submitLabel = "Save & continue" }: { su
       city: "",
       country: "",
       avatar_url: null,
-      graduation_year: Math.min(CURRENT_YEAR, CURRENT_YEAR + 4), // current year
+      graduation_year: Math.min(CURRENT_YEAR, CURRENT_YEAR + 4),
       degree: "B.Tech",
       branch: "CSE",
       employment_type: "Student",
@@ -46,8 +54,8 @@ export default function OnboardingForm({ submitLabel = "Save & continue" }: { su
       interests: [],
       is_public: true,
       can_contact: true,
-      has_consented_terms: false,     // allowed; schema refines to require true on submit
-      has_consented_privacy: false,   // allowed; schema refines to require true on submit
+      has_consented_terms: false,
+      has_consented_privacy: false,
     },
   });
 
@@ -68,7 +76,7 @@ export default function OnboardingForm({ submitLabel = "Save & continue" }: { su
         .from("profiles")
         .select("*")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
       if (profile) {
         form.reset({
@@ -77,13 +85,17 @@ export default function OnboardingForm({ submitLabel = "Save & continue" }: { su
           city: profile.city ?? "",
           country: profile.country ?? "",
           avatar_url: profile.avatar_url ?? null,
-          graduation_year: profile.graduation_year ?? Math.min(CURRENT_YEAR, CURRENT_YEAR + 4),
+          graduation_year:
+            profile.graduation_year ?? Math.min(CURRENT_YEAR, CURRENT_YEAR + 4),
           degree: (profile.degree as OnboardingValues["degree"]) ?? "B.Tech",
           branch: (profile.branch as OnboardingValues["branch"]) ?? "CSE",
-          employment_type: (profile.employment_type as OnboardingValues["employment_type"]) ?? "Student",
+          employment_type:
+            (profile.employment_type as OnboardingValues["employment_type"]) ??
+            "Student",
           company: profile.company ?? "",
           designation: profile.designation ?? "",
-          interests: (profile.interests as OnboardingValues["interests"]) ?? [],
+          interests:
+            (profile.interests as OnboardingValues["interests"]) ?? [],
           is_public: profile.is_public ?? true,
           can_contact: profile.can_contact ?? true,
           has_consented_terms: profile.has_consented_terms ?? false,
@@ -105,69 +117,94 @@ export default function OnboardingForm({ submitLabel = "Save & continue" }: { su
       const ext = file.name.split(".").pop() || "jpg";
       const path = `avatars/${user.id}/${Date.now()}.${ext}`;
 
-      const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, {
-        cacheControl: "3600",
-        upsert: true,
-      });
+      const { error: upErr } = await supabase.storage
+        .from("avatars")
+        .upload(path, file, {
+          cacheControl: "3600",
+          upsert: true,
+        });
       if (upErr) throw upErr;
 
       const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
       form.setValue("avatar_url", pub.publicUrl, { shouldDirty: true });
       toast.success("Avatar uploaded");
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to upload avatar");
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err) || "Failed to upload avatar");
     } finally {
       setUploading(false);
     }
   }
 
   async function onSubmit(values: OnboardingValues) {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error("Not signed in");
-        router.replace("/auth/login");
-        return;
-      }
-
-      const clean = {
-        full_name: values.full_name.trim(),
-        phone_e164: values.phone_e164?.trim() || null,
-        city: values.city?.trim() || null,
-        country: values.country?.trim() || null,
-        avatar_url: values.avatar_url || null,
-        graduation_year: values.graduation_year,
-        degree: values.degree,
-        branch: values.branch,
-        employment_type: values.employment_type,
-        company: values.company?.trim() || null,
-        designation: values.designation?.trim() || null,
-        interests: values.interests,
-        is_public: values.is_public,
-        can_contact: values.can_contact,
-        has_consented_terms: values.has_consented_terms,
-        has_consented_privacy: values.has_consented_privacy,
-      };
-
-      const { error } = await supabase.from("profiles").upsert({
-        id: user.id,
-        email: user.email!,
-        ...clean,
-        onboarded: true,
-      });
-
-      if (error) {
-        toast.error(error.message || "Could not save profile");
-        return;
-      }
-
-      toast.success("Profile saved");
-      router.replace("/dashboard");
-      router.refresh();
-    } catch (err: any) {
-      toast.error(err?.message || "Something went wrong");
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error("Not signed in");
+      router.replace("/auth/login");
+      return;
     }
+
+    // DB payload type: same as form but with nullable text fields
+    type UpsertPayload = {
+      id: string;
+      email: string;
+      full_name: string;
+      graduation_year: number;
+      degree: OnboardingValues["degree"];
+      branch: OnboardingValues["branch"];
+      employment_type: OnboardingValues["employment_type"];
+      phone_e164: string | null;
+      city: string | null;
+      country: string | null;
+      avatar_url: string | null;
+      company: string | null;
+      designation: string | null;
+      interests: OnboardingValues["interests"];
+      is_public: boolean;
+      can_contact: boolean;
+      has_consented_terms: boolean;     // from z.literal(true)
+      has_consented_privacy: boolean;   // from z.literal(true)
+      onboarded: boolean;
+    };
+
+    const payload: UpsertPayload = {
+      id: user.id,
+      email: user.email!, // auth email
+      full_name: values.full_name.trim(),
+      graduation_year: values.graduation_year,
+      degree: values.degree,
+      branch: values.branch,
+      employment_type: values.employment_type,
+      phone_e164: values.phone_e164?.trim() || null,
+      city: values.city?.trim() || null,
+      country: values.country?.trim() || null,
+      avatar_url: values.avatar_url || null,
+      company: values.company?.trim() || null,
+      designation: values.designation?.trim() || null,
+      interests: values.interests,
+      is_public: values.is_public,
+      can_contact: values.can_contact,
+      has_consented_terms: values.has_consented_terms,
+      has_consented_privacy: values.has_consented_privacy,
+      onboarded: true,
+    };
+
+    const { error } = await supabase.from("profiles").upsert(payload);
+
+    if (error) {
+      toast.error(error.message || "Could not save profile");
+      return;
+    }
+
+    toast.success("Profile saved");
+    router.replace("/dashboard");
+    router.refresh();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Something went wrong";
+    toast.error(msg);
   }
+}
+
 
   const years = yearsFrom1965To(CURRENT_YEAR + 4);
   const { register, handleSubmit, formState: { errors } } = form;
@@ -177,6 +214,7 @@ export default function OnboardingForm({ submitLabel = "Save & continue" }: { su
       {/* Basic */}
       <section className="space-y-4">
         <h2 className="text-lg font-medium">Basic</h2>
+
         <div className="flex items-center gap-4">
           {/* Avatar */}
           <div className="flex flex-col items-start gap-2">
@@ -290,23 +328,29 @@ export default function OnboardingForm({ submitLabel = "Save & continue" }: { su
       <section className="space-y-3">
         <h2 className="text-lg font-medium">Areas of interest</h2>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {INTERESTS.map((opt) => (
-            <label key={opt} className="flex items-center gap-2 rounded-md border px-3 py-2">
-              <input
-                type="checkbox"
-                value={opt}
-                checked={form.watch("interests")?.includes(opt as any)}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  const current = new Set(form.getValues("interests"));
-                  if (checked) current.add(opt as any);
-                  else current.delete(opt as any);
-                  form.setValue("interests", Array.from(current) as OnboardingValues["interests"], { shouldDirty: true });
-                }}
-              />
-              <span className="text-sm">{opt}</span>
-            </label>
-          ))}
+          {INTERESTS.map((opt) => {
+            const checked = form.watch("interests")?.includes(opt);
+            return (
+              <label key={opt} className="flex items-center gap-2 rounded-md border px-3 py-2">
+                <input
+                  type="checkbox"
+                  value={opt}
+                  checked={!!checked}
+                  onChange={(e) => {
+                    const curr = new Set<OnboardingValues["interests"][number]>(
+                      form.getValues("interests") ?? []
+                    );
+                    if (e.target.checked) curr.add(opt);
+                    else curr.delete(opt);
+                    form.setValue("interests", Array.from(curr) as OnboardingValues["interests"], {
+                      shouldDirty: true,
+                    });
+                  }}
+                />
+                <span className="text-sm">{opt}</span>
+              </label>
+            );
+          })}
         </div>
       </section>
 
@@ -331,7 +375,9 @@ export default function OnboardingForm({ submitLabel = "Save & continue" }: { su
               I agree to the <a href="/terms" className="underline">Terms</a>
             </span>
           </label>
-          {errors.has_consented_terms && <p className="text-xs text-red-600">{errors.has_consented_terms.message}</p>}
+          {errors.has_consented_terms && (
+            <p className="text-xs text-red-600">{errors.has_consented_terms.message}</p>
+          )}
 
           <label className="flex items-center gap-2">
             <input type="checkbox" {...register("has_consented_privacy")} />
@@ -339,14 +385,16 @@ export default function OnboardingForm({ submitLabel = "Save & continue" }: { su
               I agree to the <a href="/privacy" className="underline">Privacy Policy</a>
             </span>
           </label>
-          {errors.has_consented_privacy && <p className="text-xs text-red-600">{errors.has_consented_privacy.message}</p>}
+          {errors.has_consented_privacy && (
+            <p className="text-xs text-red-600">{errors.has_consented_privacy.message}</p>
+          )}
         </div>
       </section>
 
       <div className="flex items-center justify-end gap-3">
         <button type="submit" className="rounded-md border px-4 py-2 hover:bg-neutral-50">
-  {submitLabel}
-</button>
+          Save & continue
+        </button>
       </div>
     </form>
   );

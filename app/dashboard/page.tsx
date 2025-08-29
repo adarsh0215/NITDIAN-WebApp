@@ -9,6 +9,9 @@ export const metadata = {
 
 export const dynamic = "force-dynamic";
 
+type Tone = "neutral" | "success" | "warning" | "danger";
+type Approval = "pending" | "approved" | "rejected" | null | undefined;
+
 type Profile = {
   id: string;
   email: string;
@@ -25,25 +28,19 @@ type Profile = {
   designation: string | null;
   interests: string[] | null;
   is_public: boolean | null;
-  approval?: "pending" | "approved" | "rejected"; // if you added enum
+  approval?: Approval; // enum if you added it; may be undefined on older schema
   onboarded: boolean | null;
 };
 
-function StatusPill({
-  label,
-  tone = "neutral",
-}: {
-  label: string;
-  tone?: "neutral" | "success" | "warning" | "danger";
-}) {
-  const tones: Record<string, string> = {
+function StatusPill({ label, tone = "neutral" }: { label: string; tone?: Tone }) {
+  const tones: Record<Tone, string> = {
     neutral: "bg-neutral-100 text-neutral-700",
     success: "bg-green-100 text-green-700",
     warning: "bg-amber-100 text-amber-800",
     danger: "bg-red-100 text-red-700",
   };
   return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs ${tones[tone] || tones.neutral}`}>
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs ${tones[tone]}`}>
       {label}
     </span>
   );
@@ -105,24 +102,17 @@ export default async function DashboardPage() {
   // if no row or not onboarded → finish onboarding
   if (!profile || !profile.onboarded) redirect("/onboarding");
 
-  const approval = profile.approval ?? (false as any); // support older boolean schema
-  const approvalLabel =
-    approval === "approved"
-      ? "Approved"
-      : approval === "rejected"
-      ? "Rejected"
-      : profile.approval === undefined
-      ? profile.is_public
-        ? "Approved"
-        : "Pending"
-      : "Pending";
+  const approval: Approval = profile.approval ?? null;
 
-  const approvalTone =
-    approval === "approved" || (profile.approval === undefined && profile.is_public)
-      ? "success"
-      : approval === "rejected"
-      ? "danger"
-      : "warning";
+  const { label: approvalLabel, tone: approvalTone } = (() => {
+    // Old boolean-only schema fallback: if no enum, treat public as approved
+    if (approval === null || approval === undefined) {
+      return profile.is_public ? { label: "Approved", tone: "success" as Tone } : { label: "Pending", tone: "warning" as Tone };
+    }
+    if (approval === "approved") return { label: "Approved", tone: "success" as Tone };
+    if (approval === "rejected") return { label: "Rejected", tone: "danger" as Tone };
+    return { label: "Pending", tone: "warning" as Tone };
+  })();
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8">
@@ -130,7 +120,6 @@ export default async function DashboardPage() {
       <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <div className="flex items-center gap-4">
           {profile.avatar_url ? (
-            // Using plain <img> to avoid remote host config issues; swap to <Image> if you've configured next.config
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={profile.avatar_url}
@@ -145,7 +134,7 @@ export default async function DashboardPage() {
               Welcome back{profile.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""} 👋
             </h1>
             <div className="mt-1 flex items-center gap-2">
-              <StatusPill label={approvalLabel} tone={approvalTone as any} />
+              <StatusPill label={approvalLabel} tone={approvalTone} />
               {profile.is_public ? (
                 <StatusPill label="Public profile" tone="neutral" />
               ) : (
@@ -156,16 +145,10 @@ export default async function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Link
-            href="/settings/profile"
-            className="rounded-md border px-3 py-1.5 text-sm hover:bg-neutral-50"
-          >
+          <Link href="/settings/profile" className="rounded-md border px-3 py-1.5 text-sm hover:bg-neutral-50">
             Edit profile
           </Link>
-          <Link
-            href="/directory"
-            className="rounded-md border px-3 py-1.5 text-sm hover:bg-neutral-50"
-          >
+          <Link href="/directory" className="rounded-md border px-3 py-1.5 text-sm hover:bg-neutral-50">
             View directory
           </Link>
         </div>
@@ -189,29 +172,18 @@ export default async function DashboardPage() {
             />
             <Field
               label="Academics"
-              value={
-                [profile.degree, profile.branch, profile.graduation_year]
-                  .filter(Boolean)
-                  .join(" • ") || null
-              }
+              value={[profile.degree, profile.branch, profile.graduation_year].filter(Boolean).join(" • ") || null}
             />
             <Field
               label="Work"
-              value={
-                [profile.employment_type, profile.company, profile.designation]
-                  .filter(Boolean)
-                  .join(" • ") || null
-              }
+              value={[profile.employment_type, profile.company, profile.designation].filter(Boolean).join(" • ") || null}
             />
             {profile.interests && profile.interests.length > 0 && (
               <div className="flex items-start justify-between gap-3 py-2">
                 <div className="text-sm text-neutral-500">Interests</div>
                 <div className="flex max-w-[70%] flex-wrap gap-2">
                   {profile.interests.map((i) => (
-                    <span
-                      key={i}
-                      className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-700"
-                    >
+                    <span key={i} className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-700">
                       {i}
                     </span>
                   ))}
@@ -239,8 +211,7 @@ export default async function DashboardPage() {
           </div>
 
           <div className="mt-6 rounded-md bg-neutral-50 p-3 text-xs text-neutral-600">
-            Tip: Profiles marked <b>Public</b> appear in the directory once they’re{" "}
-            <b>Approved</b> by admins.
+            Tip: Profiles marked <b>Public</b> appear in the directory once they’re <b>Approved</b> by admins.
           </div>
         </aside>
       </div>

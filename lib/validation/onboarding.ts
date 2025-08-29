@@ -48,8 +48,12 @@ export const OnboardingSchema = z.object({
   // directory & consent
   is_public: z.boolean().default(true),
   can_contact: z.boolean().default(true),
-  has_consented_terms: z.boolean().refine(v => v, "You must agree to the Terms"),
-  has_consented_privacy: z.boolean().refine(v => v, "You must agree to the Privacy Policy"),
+  has_consented_terms: z
+    .boolean()
+    .refine((v) => v === true, { message: "You must agree to the Terms" }),
+  has_consented_privacy: z
+    .boolean()
+    .refine((v) => v === true, { message: "You must agree to the Privacy Policy" }),
 });
 
 export type OnboardingValues = z.infer<typeof OnboardingSchema>;
