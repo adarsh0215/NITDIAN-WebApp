@@ -7,8 +7,10 @@ export const metadata = {
   title: "Dashboard • NITDIAN Alumni",
 };
 
+// Always render fresh user/profile data
 export const dynamic = "force-dynamic";
 
+/* ---------- Types ---------- */
 type Tone = "neutral" | "success" | "warning" | "danger";
 type Approval = "pending" | "approved" | "rejected" | null | undefined;
 
@@ -28,10 +30,11 @@ type Profile = {
   designation: string | null;
   interests: string[] | null;
   is_public: boolean | null;
-  approval?: Approval; // enum if you added it; may be undefined on older schema
+  approval?: Approval; // might be undefined on older schema
   onboarded: boolean | null;
 };
 
+/* ---------- UI bits ---------- */
 function StatusPill({ label, tone = "neutral" }: { label: string; tone?: Tone }) {
   const tones: Record<Tone, string> = {
     neutral: "bg-neutral-100 text-neutral-700",
@@ -51,23 +54,30 @@ function Field({ label, value }: { label: string; value?: string | number | null
   return (
     <div className="flex items-center justify-between gap-3 py-2">
       <div className="text-sm text-neutral-500">{label}</div>
-      <div className="text-sm font-medium text-neutral-800">{value}</div>
+      <div className="text-sm font-medium text-neutral-900">{value}</div>
     </div>
   );
 }
 
-function Initials({ name, email, size = 56 }: { name?: string | null; email?: string | null; size?: number }) {
-  const base = name || email || "U";
+function Initials({
+  name,
+  email,
+  size = 56,
+}: {
+  name?: string | null;
+  email?: string | null;
+  size?: number;
+}) {
+  const base = (name || email || "U").trim();
   const text =
     base
-      .trim()
       .split(/\s+/)
       .map((p) => p[0])
       .join("")
       .slice(0, 2)
       .toUpperCase() || "U";
 
-  // deterministic color from string
+  // deterministic color by string
   const palette = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#14B8A6"];
   let hash = 0;
   for (let i = 0; i < base.length; i++) hash = base.charCodeAt(i) + ((hash << 5) - hash);
@@ -77,42 +87,69 @@ function Initials({ name, email, size = 56 }: { name?: string | null; email?: st
     <div
       className="flex items-center justify-center rounded-full text-white"
       style={{ width: size, height: size, backgroundColor: bg, fontSize: size * 0.35, fontWeight: 700 }}
+      aria-hidden="true"
     >
       {text}
     </div>
   );
 }
 
+/* ---------- Helpers ---------- */
+function approvalDisplay(approval: Approval, isPublic: boolean | null): {
+  label: string; tone: Tone;
+} {
+  if (approval === "approved") return { label: "Approved", tone: "success" };
+  if (approval === "rejected") return { label: "Rejected", tone: "danger" };
+  if (approval === "pending") return { label: "Pending", tone: "warning" };
+
+  // Fallback for older schema: no enum present → infer from visibility
+  return isPublic ? { label: "Approved", tone: "success" } : { label: "Pending", tone: "warning" };
+}
+
+/* ---------- Page ---------- */
 export default async function DashboardPage() {
   const supabase = await supabaseServer();
 
-  // auth
-  const { data: { user } } = await supabase.auth.getUser();
+  // Require auth
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login?next=/dashboard");
 
-  // profile
+  // Load profile
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "id,email,full_name,avatar_url,phone_e164,city,country,graduation_year,degree,branch,employment_type,company,designation,interests,is_public,approval,onboarded"
+      [
+        "id",
+        "email",
+        "full_name",
+        "avatar_url",
+        "phone_e164",
+        "city",
+        "country",
+        "graduation_year",
+        "degree",
+        "branch",
+        "employment_type",
+        "company",
+        "designation",
+        "interests",
+        "is_public",
+        "approval",
+        "onboarded",
+      ].join(",")
     )
     .eq("id", user.id)
     .maybeSingle<Profile>();
 
-  // if no row or not onboarded → finish onboarding
+  // If user hasn't finished onboarding, send them there
   if (!profile || !profile.onboarded) redirect("/onboarding");
 
-  const approval: Approval = profile.approval ?? null;
-
-  const { label: approvalLabel, tone: approvalTone } = (() => {
-    // Old boolean-only schema fallback: if no enum, treat public as approved
-    if (approval === null || approval === undefined) {
-      return profile.is_public ? { label: "Approved", tone: "success" as Tone } : { label: "Pending", tone: "warning" as Tone };
-    }
-    if (approval === "approved") return { label: "Approved", tone: "success" as Tone };
-    if (approval === "rejected") return { label: "Rejected", tone: "danger" as Tone };
-    return { label: "Pending", tone: "warning" as Tone };
-  })();
+  const { label: approvalLabel, tone: approvalTone } = approvalDisplay(
+    profile.approval ?? null,
+    profile.is_public
+  );
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8">
@@ -123,12 +160,13 @@ export default async function DashboardPage() {
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={profile.avatar_url}
-              alt={profile.full_name ?? "User"}
+              alt={profile.full_name ?? "User avatar"}
               className="h-14 w-14 rounded-full object-cover"
             />
           ) : (
             <Initials name={profile.full_name} email={profile.email} size={56} />
           )}
+
           <div>
             <h1 className="text-xl font-semibold">
               Welcome back{profile.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""} 👋
@@ -145,10 +183,16 @@ export default async function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Link href="/settings/profile" className="rounded-md border px-3 py-1.5 text-sm hover:bg-neutral-50">
+          <Link
+            href="/settings/profile"
+            className="rounded-md border px-3 py-1.5 text-sm hover:bg-neutral-50"
+          >
             Edit profile
           </Link>
-          <Link href="/directory" className="rounded-md border px-3 py-1.5 text-sm hover:bg-neutral-50">
+          <Link
+            href="/directory"
+            className="rounded-md border px-3 py-1.5 text-sm hover:bg-neutral-50"
+          >
             View directory
           </Link>
         </div>
@@ -156,7 +200,7 @@ export default async function DashboardPage() {
 
       {/* Content grid */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Profile summary card */}
+        {/* Profile summary */}
         <section className="rounded-xl border bg-white p-5 lg:col-span-2">
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-neutral-500">
             Profile Summary
@@ -172,18 +216,25 @@ export default async function DashboardPage() {
             />
             <Field
               label="Academics"
-              value={[profile.degree, profile.branch, profile.graduation_year].filter(Boolean).join(" • ") || null}
+              value={[profile.degree, profile.branch, profile.graduation_year]
+                .filter(Boolean)
+                .join(" • ") || null}
             />
             <Field
               label="Work"
-              value={[profile.employment_type, profile.company, profile.designation].filter(Boolean).join(" • ") || null}
+              value={[profile.employment_type, profile.company, profile.designation]
+                .filter(Boolean)
+                .join(" • ") || null}
             />
             {profile.interests && profile.interests.length > 0 && (
               <div className="flex items-start justify-between gap-3 py-2">
                 <div className="text-sm text-neutral-500">Interests</div>
                 <div className="flex max-w-[70%] flex-wrap gap-2">
                   {profile.interests.map((i) => (
-                    <span key={i} className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-700">
+                    <span
+                      key={i}
+                      className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-700"
+                    >
                       {i}
                     </span>
                   ))}
@@ -193,19 +244,28 @@ export default async function DashboardPage() {
           </div>
         </section>
 
-        {/* Next steps / actions */}
+        {/* Quick actions */}
         <aside className="rounded-xl border bg-white p-5">
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-neutral-500">
             Quick Actions
           </h2>
           <div className="space-y-2">
-            <Link href="/settings/profile" className="block rounded-md border px-3 py-2 text-sm hover:bg-neutral-50">
+            <Link
+              href="/settings/profile"
+              className="block rounded-md border px-3 py-2 text-sm hover:bg-neutral-50"
+            >
               Update profile details
             </Link>
-            <Link href="/directory" className="block rounded-md border px-3 py-2 text-sm hover:bg-neutral-50">
+            <Link
+              href="/directory"
+              className="block rounded-md border px-3 py-2 text-sm hover:bg-neutral-50"
+            >
               Browse alumni directory
             </Link>
-            <Link href="/onboarding" className="block rounded-md border px-3 py-2 text-sm hover:bg-neutral-50">
+            <Link
+              href="/onboarding"
+              className="block rounded-md border px-3 py-2 text-sm hover:bg-neutral-50"
+            >
               Re-run onboarding
             </Link>
           </div>
