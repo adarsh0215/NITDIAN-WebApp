@@ -31,7 +31,6 @@ type Props = {
   redirectTo?: string | null;
 };
 
-
 function getErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   if (typeof err === "string") return err;
@@ -58,10 +57,10 @@ export default function OnboardingForm({
       city: "",
       country: "",
       avatar_url: null,
-      graduation_year: Math.min(CURRENT_YEAR, CURRENT_YEAR + 4),
-      degree: "B.Tech",
-      branch: "CSE",
-      employment_type: "Student",
+      graduation_year: CURRENT_YEAR,
+      degree: DEGREES[0],
+      branch: BRANCHES[0],
+      employment_type: EMPLOYMENT_TYPES[0],
       company: "",
       designation: "",
       interests: [],
@@ -105,13 +104,12 @@ export default function OnboardingForm({
         city: profile.city ?? "",
         country: profile.country ?? "",
         avatar_url: profile.avatar_url ?? null,
-        graduation_year:
-          profile.graduation_year ?? Math.min(CURRENT_YEAR, CURRENT_YEAR + 4),
-        degree: (profile.degree as OnboardingValues["degree"]) ?? "B.Tech",
-        branch: (profile.branch as OnboardingValues["branch"]) ?? "CSE",
+        graduation_year: profile.graduation_year ?? CURRENT_YEAR,
+        degree: (profile.degree as OnboardingValues["degree"]) ?? DEGREES[0],
+        branch: (profile.branch as OnboardingValues["branch"]) ?? BRANCHES[0],
         employment_type:
           (profile.employment_type as OnboardingValues["employment_type"]) ??
-          "Student",
+          EMPLOYMENT_TYPES[0],
         company: profile.company ?? "",
         designation: profile.designation ?? "",
         interests: (profile.interests as OnboardingValues["interests"]) ?? [],
@@ -221,7 +219,7 @@ export default function OnboardingForm({
       }
 
       toast.success("Profile saved");
-      router.replace("/dashboard");
+      if (redirectTo) router.replace(redirectTo);
       router.refresh();
     } catch (err: unknown) {
       toast.error(getErrorMessage(err) || "Something went wrong");
@@ -263,7 +261,8 @@ export default function OnboardingForm({
                 onChange={handleAvatarChange}
                 disabled={uploading || isSubmitting}
               />
-              <span className="cursor-pointer rounded-md border px-3 py-1.5 text-sm hover:bg-neutral-50 aria-disabled:opacity-50"
+              <span
+                className="cursor-pointer rounded-md border px-3 py-1.5 text-sm hover:bg-neutral-50 aria-disabled:opacity-50"
                 aria-disabled={uploading || isSubmitting}
               >
                 {uploading ? "Uploading…" : "Change"}
@@ -338,7 +337,7 @@ export default function OnboardingForm({
             <label className="text-sm">Graduation year</label>
             <select
               className="mt-1 w-full rounded-md border px-3 py-2"
-              {...register("graduation_year")}
+              {...register("graduation_year", { valueAsNumber: true })}
               disabled={isSubmitting}
             >
               {years.map((y) => (
@@ -444,35 +443,37 @@ export default function OnboardingForm({
       <section className="space-y-3">
         <h2 className="text-lg font-medium">Areas of interest</h2>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {INTERESTS.map((opt) => {
-            const checked = interestsCurrent.includes(opt);
-            return (
-              <label
-                key={opt}
-                className="flex items-center gap-2 rounded-md border px-3 py-2"
-              >
-                <input
-                  type="checkbox"
-                  value={opt}
-                  checked={checked}
-                  onChange={(e) => {
-                    const curr = new Set<OnboardingValues["interests"][number]>(
-                      getValues("interests") ?? []
-                    );
-                    if (e.target.checked) curr.add(opt);
-                    else curr.delete(opt);
-                    setValue(
-                      "interests",
-                      Array.from(curr) as OnboardingValues["interests"],
-                      { shouldDirty: true }
-                    );
-                  }}
-                  disabled={isSubmitting}
-                />
-                <span className="text-sm">{opt}</span>
-              </label>
-            );
-          })}
+          {INTERESTS.map(
+            (opt: OnboardingValues["interests"][number]) => {
+              const checked = interestsCurrent.includes(opt);
+              return (
+                <label
+                  key={opt}
+                  className="flex items-center gap-2 rounded-md border px-3 py-2"
+                >
+                  <input
+                    type="checkbox"
+                    value={opt}
+                    checked={checked}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                      const curr = new Set<
+                        OnboardingValues["interests"][number]
+                      >(form.getValues("interests") ?? []);
+                      if (e.target.checked) curr.add(opt);
+                      else curr.delete(opt);
+                      setValue(
+                        "interests",
+                        Array.from(curr) as OnboardingValues["interests"],
+                        { shouldDirty: true }
+                      );
+                    }}
+                    disabled={isSubmitting}
+                  />
+                  <span className="text-sm">{opt}</span>
+                </label>
+              );
+            }
+          )}
         </div>
       </section>
 
@@ -481,18 +482,34 @@ export default function OnboardingForm({
         <h2 className="text-lg font-medium">Directory & consent</h2>
 
         <label className="flex items-center gap-2">
-          <input type="checkbox" {...register("is_public")} disabled={isSubmitting} />
-          <span className="text-sm">Show my profile in the public directory</span>
+          <input
+            type="checkbox"
+            {...register("is_public")}
+            disabled={isSubmitting}
+          />
+          <span className="text-sm">
+            Show my profile in the public directory
+          </span>
         </label>
 
         <label className="flex items-center gap-2">
-          <input type="checkbox" {...register("can_contact")} disabled={isSubmitting} />
-          <span className="text-sm">Allow organizers to contact me (email/phone not public)</span>
+          <input
+            type="checkbox"
+            {...register("can_contact")}
+            disabled={isSubmitting}
+          />
+          <span className="text-sm">
+            Allow organizers to contact me (email/phone not public)
+          </span>
         </label>
 
         <div className="space-y-2" aria-live="polite">
           <label className="flex items-center gap-2">
-            <input type="checkbox" {...register("has_consented_terms")} disabled={isSubmitting} />
+            <input
+              type="checkbox"
+              {...register("has_consented_terms")}
+              disabled={isSubmitting}
+            />
             <span className="text-sm">
               I agree to the <a href="/terms" className="underline">Terms</a>
             </span>
@@ -504,9 +521,14 @@ export default function OnboardingForm({
           )}
 
           <label className="flex items-center gap-2">
-            <input type="checkbox" {...register("has_consented_privacy")} disabled={isSubmitting} />
+            <input
+              type="checkbox"
+              {...register("has_consented_privacy")}
+              disabled={isSubmitting}
+            />
             <span className="text-sm">
-              I agree to the <a href="/privacy" className="underline">Privacy Policy</a>
+              I agree to the{" "}
+              <a href="/privacy" className="underline">Privacy Policy</a>
             </span>
           </label>
           {errors.has_consented_privacy && (
@@ -523,7 +545,7 @@ export default function OnboardingForm({
           className="rounded-md border px-4 py-2 hover:bg-neutral-50 disabled:opacity-60"
           disabled={isSubmitting || uploading}
         >
-          {isSubmitting ? "Saving…" : "Save & continue"}
+          {isSubmitting ? "Saving…" : submitLabel}
         </button>
       </div>
     </form>

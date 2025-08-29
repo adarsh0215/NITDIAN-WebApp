@@ -86,7 +86,7 @@ function Initials({
   const text =
     base
       .split(/\s+/)
-      .map((p) => p[0])
+      .map((p: string) => p[0])
       .join("")
       .slice(0, 2)
       .toUpperCase() || "U";
@@ -102,8 +102,9 @@ function Initials({
     "#14B8A6",
   ];
   let hash = 0;
-  for (let i = 0; i < base.length; i++)
+  for (let i = 0; i < base.length; i++) {
     hash = base.charCodeAt(i) + ((hash << 5) - hash);
+  }
   const bg = palette[Math.abs(hash) % palette.length];
 
   return (
