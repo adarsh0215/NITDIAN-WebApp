@@ -24,6 +24,14 @@ function yearsFrom1965To(limit: number) {
   return arr.reverse();
 }
 
+type Props = {
+  /** Button text (defaults to "Save & continue") */
+  submitLabel?: string;
+  /** Where to navigate after a successful save. Set to null to stay put. */
+  redirectTo?: string | null;
+};
+
+
 function getErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   if (typeof err === "string") return err;
@@ -35,7 +43,10 @@ function getErrorMessage(err: unknown): string {
 }
 
 /* ---------- Component ---------- */
-export default function OnboardingForm() {
+export default function OnboardingForm({
+  submitLabel = "Save & continue",
+  redirectTo = "/dashboard",
+}: Props) {
   const router = useRouter();
   const supabase = supabaseBrowser();
 
