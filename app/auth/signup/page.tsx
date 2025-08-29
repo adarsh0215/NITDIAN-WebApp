@@ -1,11 +1,14 @@
 "use client";
 
 import * as React from "react";
+import { Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
+
+export const dynamic = "force-dynamic";
 
 function safePath(raw: string | null): string {
   if (!raw) return "/onboarding";
@@ -13,7 +16,7 @@ function safePath(raw: string | null): string {
   return raw;
 }
 
-export default function SignupPage() {
+function SignupInner() {
   const sp = useSearchParams();
   const next = safePath(sp.get("next"));
   const router = useRouter();
@@ -37,30 +40,20 @@ export default function SignupPage() {
     <main className="mx-auto max-w-sm space-y-6">
       <h1 className="text-2xl font-semibold">Sign up</h1>
 
-      <GoogleAuthButton next={next} mode="signup" />
+      <GoogleAuthButton next={next} />
 
       <div className="text-center text-xs text-neutral-500">or</div>
 
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-2">
           <label className="text-sm">Email</label>
-          <input
-            className="w-full rounded-md border px-3 py-2"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
+          <input className="w-full rounded-md border px-3 py-2" type="email" value={email}
+                 onChange={(e) => setEmail(e.target.value)} required />
         </div>
         <div className="space-y-2">
           <label className="text-sm">Password</label>
-          <input
-            className="w-full rounded-md border px-3 py-2"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
+          <input className="w-full rounded-md border px-3 py-2" type="password" value={password}
+                 onChange={(e) => setPassword(e.target.value)} required />
         </div>
         <button disabled={loading} className="w-full rounded-md border px-4 py-2">
           {loading ? "Creating…" : "Create account"}
@@ -72,4 +65,8 @@ export default function SignupPage() {
       </p>
     </main>
   );
+}
+
+export default function SignupPage() {
+  return <Suspense fallback={<div className="p-6">Loading…</div>}><SignupInner /></Suspense>;
 }
