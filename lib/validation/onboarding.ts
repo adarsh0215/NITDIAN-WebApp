@@ -2,7 +2,22 @@
 import { z } from "zod";
 
 export const DEGREES = ["B.Tech", "M.Tech", "MBA", "PhD", "Other"] as const;
-export const BRANCHES = ["CSE", "ECE", "EE", "ME", "CE", "BT", "CH", "MME", "Other"] as const;
+export const BRANCHES = [
+  "Biotechnology",
+  "Civil Engineering",
+  "Chemical Engineering",
+  "Computer Science & Engineering",
+  "Chemistry",
+  "Electronics & Communication Engineering",
+  "Electrical Engineering",
+  "Earth & Environmental Studies",
+  "Humanities & Social Sciences",
+  "Mathematics",
+  "Mechanical Engineering",
+  "Metallurgical & Materials Engineering",
+  "Management Studies",
+  "Physics",
+] as const;
 export const EMPLOYMENT_TYPES = [
   "Student",
   "Employed",
@@ -12,11 +27,11 @@ export const EMPLOYMENT_TYPES = [
 ] as const;
 export const INTERESTS = [
   "Networking, Business & Services",
-  "Mentorship",
-  "Research & Academia",
-  "Events & Reunions",
+  "Mentorship & Guidance",
   "Jobs & Internships",
-  "Other",
+  "Exclusive Member Benefits",
+  "Community Activities",
+  "Nostalgia & Updates",
 ] as const;
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -38,7 +53,9 @@ export const OnboardingSchema = z.object({
   branch: z.enum(BRANCHES, { required_error: "Select branch" }),
 
   // work
-  employment_type: z.enum(EMPLOYMENT_TYPES, { required_error: "Select employment type" }),
+  employment_type: z.enum(EMPLOYMENT_TYPES, {
+    required_error: "Select employment type",
+  }),
   company: z.string().optional().or(z.literal("")),
   designation: z.string().optional().or(z.literal("")),
 
@@ -53,7 +70,9 @@ export const OnboardingSchema = z.object({
     .refine((v) => v === true, { message: "You must agree to the Terms" }),
   has_consented_privacy: z
     .boolean()
-    .refine((v) => v === true, { message: "You must agree to the Privacy Policy" }),
+    .refine((v) => v === true, {
+      message: "You must agree to the Privacy Policy",
+    }),
 });
 
 export type OnboardingValues = z.infer<typeof OnboardingSchema>;

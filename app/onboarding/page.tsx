@@ -29,10 +29,6 @@ export default async function OnboardingPage() {
 
   return (
     <main className="mx-auto max-w-2xl py-10 px-4">
-      <h1 className="mb-6 text-2xl font-semibold">Complete your profile</h1>
-      <p className="mb-6 text-sm text-neutral-600">
-        Fill the essentials below. You can edit everything later from your dashboard.
-      </p>
       <OnboardingForm />
     </main>
   );

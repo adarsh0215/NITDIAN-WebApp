@@ -103,7 +103,7 @@ export function ProfileCard({ profile }: { profile: DirectoryProfile }) {
     <Link
       href={`/profiles/${profile.id}`}
       className={`
-        group block rounded-md border border-[#EAEAEA] dark:border-border bg-card p-5 shadow-[var(--shadow-1)]
+        group block rounded-md border border-[E] dark:border-border bg-card p-5 shadow-[var(--shadow-1)]
         transition will-change-transform hover:-translate-y-[1px] hover:shadow-[var(--shadow-2)]
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
       `}
