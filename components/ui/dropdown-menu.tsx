@@ -32,9 +32,7 @@ DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName;
 
 export const DropdownMenuItem = React.forwardRef<
   HTMLDivElement,
-  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item> & {
-    inset?: boolean;
-  }
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item> & { inset?: boolean }
 >(({ className, inset, ...props }, ref) => (
   <DropdownMenuPrimitive.Item
     ref={ref}
@@ -49,3 +47,28 @@ export const DropdownMenuItem = React.forwardRef<
   />
 ));
 DropdownMenuItem.displayName = DropdownMenuPrimitive.Item.displayName;
+
+/* Optional helpers */
+export const DropdownMenuSeparator = React.forwardRef<
+  HTMLDivElement,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Separator>
+>(({ className, ...props }, ref) => (
+  <DropdownMenuPrimitive.Separator
+    ref={ref}
+    className={cn("my-1 h-px bg-border", className)}
+    {...props}
+  />
+));
+DropdownMenuSeparator.displayName = DropdownMenuPrimitive.Separator.displayName;
+
+export const DropdownMenuLabel = React.forwardRef<
+  HTMLDivElement,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Label>
+>(({ className, ...props }, ref) => (
+  <DropdownMenuPrimitive.Label
+    ref={ref}
+    className={cn("px-2 py-1.5 text-xs font-semibold text-muted-foreground", className)}
+    {...props}
+  />
+));
+DropdownMenuLabel.displayName = DropdownMenuPrimitive.Label.displayName;

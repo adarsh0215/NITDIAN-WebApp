@@ -1,12 +1,19 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-export function Badge({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) {
+export type BadgeProps = React.HTMLAttributes<HTMLSpanElement> & {
+  variant?: "default" | "outline";
+};
+
+export function Badge({ className, variant = "default", ...props }: BadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-[999px] border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground",
-        className,
+        "inline-flex items-center rounded-[var(--radius-sm)] border px-2 py-0.5 text-xs font-medium",
+        variant === "default"
+          ? "bg-muted text-foreground border-border"
+          : "bg-transparent text-foreground border-border",
+        className
       )}
       {...props}
     />
