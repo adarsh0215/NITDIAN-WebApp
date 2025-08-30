@@ -27,18 +27,28 @@ export default function DesktopNavbar({
   onSignOut,
 }: Props) {
   return (
-    <div className="hidden md:grid md:grid-cols-[1fr_auto_1fr] h-16 items-center max-w-7xl mx-auto px-6">
+    <div className="hidden md:grid md:grid-cols-[1fr_auto_1fr] items-center w-full">
       {/* Brand */}
       <Link
         href="/"
         aria-label={`${brand.title} home`}
         className="flex items-center gap-2 md:justify-self-start"
       >
-        <Image src={brand.logo} alt="Logo" width={40} height={40} className="h-10 w-10 object-contain" />
+        <Image
+          src={brand.logo}
+          alt="Logo"
+          width={40}
+          height={40}
+          className="h-10 w-10 object-contain rounded-lg hairline bg-surface"
+        />
         <div className="hidden sm:flex flex-col leading-tight min-w-0">
-          <span className="truncate text-base font-semibold tracking-tight">{brand.title}</span>
+          <span className="truncate text-base font-semibold tracking-tight">
+            {brand.title}
+          </span>
           {brand.subtitle && (
-            <span className="truncate text-xs sm:text-sm text-muted-foreground">{brand.subtitle}</span>
+            <span className="truncate text-xs sm:text-sm text-muted-foreground">
+              {brand.subtitle}
+            </span>
           )}
         </div>
       </Link>
@@ -63,10 +73,14 @@ export default function DesktopNavbar({
         {!authed ? (
           <>
             <Link href="/auth/login">
-              <Button variant="ghost" size="sm" className="rounded-lg">Login</Button>
+              <Button variant="ghost" size="sm" className="rounded-lg">
+                Login
+              </Button>
             </Link>
             <Link href="/auth/signup">
-              <Button size="sm" className="rounded-lg">Sign Up</Button>
+              <Button size="sm" className="rounded-lg">
+                Sign Up
+              </Button>
             </Link>
           </>
         ) : (
