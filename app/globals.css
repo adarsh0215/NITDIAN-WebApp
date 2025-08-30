@@ -49,7 +49,7 @@
   --bg:        #091717;             /* off-black */
   --surface:   #0F1A1B;             /* deep card */
   --muted:     #0F2A2E;             /* subtle tile */
-  --border:    #FFFFFF1F;           /* thin light border */
+  --border:    #EAEAEA;           /* thin light border */
   --overlay:   oklch(0.88 0.015 95);
 
   --fg:        #F2FBFC;             /* near-white */

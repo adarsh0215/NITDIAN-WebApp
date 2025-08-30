@@ -1,4 +1,3 @@
-// lib/design/theme.tsx
 "use client";
 
 import * as React from "react";
@@ -7,64 +6,100 @@ import { Sun, Moon, Monitor } from "lucide-react";
 export type Mode = "light" | "dark" | "system";
 
 type Ctx = {
-  mode: Mode;                         // user selection
-  resolvedTheme: "light" | "dark";    // actually applied to <html data-theme=…>
+  mode: Mode;                       // user selection
+  resolvedTheme: "light" | "dark";  // actually applied theme
   setMode: (m: Mode) => void;
+  toggle: () => void;               // convenience: flip light<->dark
 };
 
 const ThemeContext = React.createContext<Ctx | null>(null);
+const STORAGE_KEY = "theme-mode";
 
+/* ---------- system theme subscription (SSR-safe) ---------- */
+function subscribeSystemTheme(cb: () => void) {
+  if (typeof window === "undefined") return () => {};
+  const mql = window.matchMedia("(prefers-color-scheme: dark)");
+  mql.addEventListener("change", cb);
+  return () => mql.removeEventListener("change", cb);
+}
 function getSystemTheme(): "light" | "dark" {
   if (typeof window === "undefined") return "light";
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
+function useSystemTheme(): "light" | "dark" {
+  // useSyncExternalStore ensures strict mode consistency
+  // and avoids stale values around fast refresh.
+  // ts-expect-error TS doesn't know subscribe signature is fine
 
+  return React.useSyncExternalStore(subscribeSystemTheme, getSystemTheme, () => "light");
+}
+
+/* ---------- DOM apply helpers ---------- */
+/* ---------- DOM apply helpers ---------- */
 function apply(theme: "light" | "dark") {
   if (typeof document === "undefined") return;
-  document.documentElement.setAttribute("data-theme", theme);
+  const html = document.documentElement;
+  html.setAttribute("data-theme", theme);
+
+  // Help native form controls / UA styling match
+  (html.style as CSSStyleDeclaration).colorScheme = theme;
+
+  // Optional: update <meta name="theme-color"> if present (uses your CSS vars)
+  const meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
+  if (meta) {
+    const bg = getComputedStyle(html).getPropertyValue("--bg").trim() || "#000";
+    meta.content = bg;
+  }
+}
+
+
+/* ---------- storage helpers ---------- */
+function readStoredMode(): Mode {
+  if (typeof localStorage === "undefined") return "system";
+  const raw = localStorage.getItem(STORAGE_KEY);
+  return raw === "light" || raw === "dark" || raw === "system" ? raw : "system";
+}
+function writeStoredMode(m: Mode) {
+  try { localStorage.setItem(STORAGE_KEY, m); } catch {}
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setModeState] = React.useState<Mode>("system");
-  const [resolvedTheme, setResolvedTheme] = React.useState<"light" | "dark">("light");
+  const system = useSystemTheme();
 
-  // Initialize from localStorage / system
-  React.useEffect(() => {
-    const stored = (typeof localStorage !== "undefined" && (localStorage.getItem("theme-mode") as Mode | null)) || "system";
-    const initialMode: Mode = stored === "light" || stored === "dark" || stored === "system" ? stored : "system";
-    const initialResolved = initialMode === "system" ? getSystemTheme() : initialMode;
-    setModeState(initialMode);
-    setResolvedTheme(initialResolved);
-    apply(initialResolved);
-  }, []);
+  // initialize once on client
+  const [mode, setModeState] = React.useState<Mode>(() => readStoredMode());
+  const resolvedTheme = mode === "system" ? system : mode;
 
-  // React to OS changes when in "system"
+  // apply on mount and whenever resolved changes
+  React.useEffect(() => { apply(resolvedTheme); }, [resolvedTheme]);
+
+  // keep in sync across tabs
   React.useEffect(() => {
-    if (mode !== "system" || typeof window === "undefined") return;
-    const mql = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = () => {
-      const next = mql.matches ? "dark" : "light";
-      setResolvedTheme(next);
-      apply(next);
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== STORAGE_KEY) return;
+      const next = readStoredMode();
+      setModeState(next);
     };
-    onChange();
-    mql.addEventListener("change", onChange);
-    return () => mql.removeEventListener("change", onChange);
-  }, [mode]);
-
-  const setMode: Ctx["setMode"] = React.useCallback((m) => {
-    setModeState(m);
-    const next = m === "system" ? getSystemTheme() : m;
-    setResolvedTheme(next);
-    apply(next);
-    try { localStorage.setItem("theme-mode", m); } catch {}
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  return (
-    <ThemeContext.Provider value={{ mode, resolvedTheme, setMode }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  const setMode = React.useCallback<Ctx["setMode"]>((m) => {
+    setModeState(m);
+    writeStoredMode(m);
+    const next = m === "system" ? getSystemTheme() : m;
+    apply(next);
+  }, []);
+
+  const toggle = React.useCallback(() => {
+    const nextResolved = resolvedTheme === "light" ? "dark" : "light";
+    // if user had 'system', flipping should pin explicit opposite
+    setMode(nextResolved);
+  }, [resolvedTheme, setMode]);
+
+  const ctx: Ctx = { mode, resolvedTheme, setMode, toggle };
+
+  return <ThemeContext.Provider value={ctx}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme() {
@@ -77,14 +112,13 @@ export function useTheme() {
 /*       UI Controls       */
 /* ----------------------- */
 
-/** Simple toggle: flips between light/dark (ignores system selection) */
 export function ThemeToggle({ className = "" }: { className?: string }) {
-  const { resolvedTheme, setMode } = useTheme();
+  const { resolvedTheme, toggle } = useTheme();
   const next = resolvedTheme === "light" ? "dark" : "light";
   return (
     <button
       type="button"
-      onClick={() => setMode(next)}
+      onClick={toggle}
       aria-label="Toggle theme"
       className={`inline-flex items-center gap-2 rounded-[var(--radius-sm)] border border-border px-3 py-2 text-sm hover:bg-muted transition ${className}`}
     >
@@ -94,7 +128,6 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
   );
 }
 
-/** Segmented switcher: Light / Dark / System */
 export function ThemeSwitcher({ className = "" }: { className?: string }) {
   const { mode, setMode } = useTheme();
 
@@ -140,19 +173,27 @@ export function ThemeSwitcher({ className = "" }: { className?: string }) {
 }
 
 /**
- * Optional: inline this before your app renders to avoid a flash of wrong theme.
- * Place inside <body> in app/layout.tsx, above <ThemeProvider>.
+ * No-Flash script — inline this in app/layout.tsx, above <ThemeProvider>.
+ * Ensures the correct theme is applied before React hydrates.
  *
  * <script dangerouslySetInnerHTML={{ __html: getNoFlashScript() }} />
+ * <meta name="theme-color" content="#000" />
  */
 export function getNoFlashScript() {
   return `
   (function(){
     try {
-      var m = localStorage.getItem('theme-mode');
+      var m = localStorage.getItem('${STORAGE_KEY}');
       var pref = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       var theme = (m === 'light' || m === 'dark') ? m : pref;
-      document.documentElement.setAttribute('data-theme', theme);
+      var html = document.documentElement;
+      html.setAttribute('data-theme', theme);
+      html.style.colorScheme = theme;
+      var meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) {
+        // Use the CSS var if available post-load; early paint keeps meta as-is.
+        // (It will be updated again by ThemeProvider on hydration.)
+      }
     } catch(e) {}
   })();
   `;
