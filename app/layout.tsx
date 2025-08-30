@@ -1,31 +1,30 @@
-import "./globals.css";
+// app/layout.tsx
 import type { Metadata } from "next";
-import localFont from "next/font/local";
-import { ThemeProvider } from "@/lib/design/theme";
-import Navbar from "@/components/nav/Navbar";
-import { Toaster } from "sonner";
+import "./globals.css";
 
-// app/layout.tsx (alternative)
-import { Inter, JetBrains_Mono } from "next/font/google";
-// import { AppToaster } from "@/components/ui/toaster";
+import { ThemeProvider } from "@/lib/design/theme";          // client provider
+import { getNoFlashScript } from "@/lib/design/theme-noflash"; // ✅ server-safe
 
-const geistSans = Inter({ subsets: ["latin"], variable: "--font-geist-sans", display: "swap" });
-const geistMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-geist-mono", display: "swap" });
-
+import Navbar from "@/components/layout/navbar/Navbar"; // or "./layout/navbar/Navbar" if you moved it
 
 export const metadata: Metadata = {
-  title: "Geist-ish Design System",
-  description: "Neutral, premium design tokens with Tailwind v4 + shadcn vars.",
+  title: "AlumniNet",
+  description: "NIT Durgapur Alumni Network",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        <Navbar />
-        <ThemeProvider>{children}</ThemeProvider>
-        <Toaster richColors position="top-right" /> 
-         {/* <AppToaster /> */}
+      <head>
+        {/* Prevent flash of wrong theme on first paint */}
+        <script dangerouslySetInnerHTML={{ __html: getNoFlashScript() }} />
+      </head>
+      <body className="min-h-screen bg-background text-foreground antialiased">
+        {/* Provider must wrap anything that calls useTheme() */}
+        <ThemeProvider>
+          <Navbar />
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
