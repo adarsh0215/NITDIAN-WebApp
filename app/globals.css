@@ -1,26 +1,159 @@
+/* app/globals.css */
 @import "tailwindcss";
 
+/* -----------------------------------------
+   Geist-ish neutral, subtle borders, soft radii
+   (palette refreshed to Perplexity-style teals)
+   ----------------------------------------- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Brand — True Turquoise vibe */
+  --brand: #20808D;                 /* primary */
+  --brand-foreground: #ECF6F7;      /* on-primary */
+
+  /* Neutrals (light) */
+  --bg:        #FBFAF4;             /* paper */
+  --surface:   #FFFFFF;             /* cards/popovers */
+  --muted:     #EAEEEE;             /* soft tile / hover */
+  --border:    #D8DEDF;             /* hairline */
+  --overlay:   oklch(0.20 0.02 95);
+
+  --fg:        #091717;             /* off-black */
+  --fg-muted:  #4B5B5E;             /* secondary text */
+
+  /* States */
+  --positive:  oklch(0.72 0.16 145);
+  --warning:   oklch(0.80 0.16 85);
+  --negative:  #E5484D;
+
+  /* Elevation */
+  --shadow-1:  0 1px 2px rgb(0 0 0 / 0.06);
+  --shadow-2:  0 4px 10px rgb(0 0 0 / 0.08);
+
+  /* Radii / Ring */
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-lg: 16px;
+  --ring: #7FB9C1;                  /* friendly teal ring */
+
+  /* Fonts (wired from next/font in layout) */
+  --font-sans: var(--font-geist-sans, ui-sans-serif, system-ui, sans-serif);
+  --font-mono: var(--font-geist-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+
+  color-scheme: light;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root[data-theme="dark"] {
+  --brand: #4FD7E6;                 /* brighter teal in dark */
+  --brand-foreground: #031B1E;
+
+  --bg:        #091717;             /* off-black */
+  --surface:   #0F1A1B;             /* deep card */
+  --muted:     #0F2A2E;             /* subtle tile */
+  --border:    #FFFFFF1F;           /* thin light border */
+  --overlay:   oklch(0.88 0.015 95);
+
+  --fg:        #F2FBFC;             /* near-white */
+  --fg-muted:  #88A7AC;
+
+  --positive:  oklch(0.80 0.14 145);
+  --warning:   oklch(0.82 0.14 85);
+  --negative:  #FF6369;
+
+  --ring:      #63CFDA;
+
+  color-scheme: dark;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  :root:not([data-theme="light"]) { color-scheme: dark; }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Tailwind token bridge */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-overlay: var(--overlay);
+
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+
+  --color-positive: var(--positive);
+  --color-warning: var(--warning);
+  --color-negative: var(--negative);
+
+  --radius: var(--radius);
+  --radius-sm: var(--radius-sm);
+  --radius-lg: var(--radius-lg);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  /* === Added so classes like bg-primary / text-primary-foreground work === */
+  --color-primary: var(--brand);
+  --color-primary-foreground: var(--brand-foreground);
+
+  --color-secondary: var(--muted);
+  --color-secondary-foreground: var(--fg);
+
+  --color-destructive: var(--negative);
+  --color-destructive-foreground: var(--brand-foreground);
+
+  --color-card: var(--surface);
+  --color-card-foreground: var(--fg);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--fg);
+
+  --color-ring: var(--ring);
+  --color-input: var(--border);
 }
+
+/* Base */
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--fg);
+  font-family:var(--font-sans);
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility
+}
+
+/* Nice selection color */
+::selection { background: color-mix(in oklch, var(--brand) 18%, transparent); }
+
+/* shadcn variable expectations */
+:root{
+  --background: var(--bg);
+  --foreground: var(--fg);
+  --card: var(--surface);
+  --card-foreground: var(--fg);
+  --popover: var(--surface);
+  --popover-foreground: var(--fg);
+  --primary: var(--brand);
+  --primary-foreground: var(--brand-foreground);
+  --secondary: var(--muted);
+  --secondary-foreground: var(--fg);
+  --muted-foreground: var(--fg-muted);
+  --accent: var(--muted);
+  --accent-foreground: var(--fg);
+  --destructive: var(--negative);
+  --destructive-foreground: var(--brand-foreground);
+  --border: var(--border);
+  --input: var(--border);
+  --ring: var(--ring);
+  --radius: var(--radius);
+}
+
+/* Focus ring */
+:focus-visible{outline:2px solid var(--ring);outline-offset:2px;border-radius:var(--radius-sm)}
+
+/* Utility helpers */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-1)}
+.hairline{border:1px solid var(--border)}
+.kbd{font-family:var(--font-mono);border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:2px 6px}
