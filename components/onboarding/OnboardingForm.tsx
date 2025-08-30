@@ -41,6 +41,45 @@ function getErrorMessage(err: unknown): string {
   }
 }
 
+/** Shape of the row we read from `profiles` (includes a few legacy fallbacks). */
+type ProfileDB = {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  phone_e164: string | null;
+  /** legacy */
+  phone?: string | null;
+
+  city: string | null;
+  country: string | null;
+  avatar_url: string | null;
+
+  graduation_year: number | null;
+
+  degree: OnboardingValues["degree"] | null;
+
+  /** canonical */
+  branch: OnboardingValues["branch"] | null;
+  /** legacy */
+  department?: OnboardingValues["branch"] | null;
+
+  employment_type: OnboardingValues["employment_type"] | null;
+
+  company: string | null;
+  designation: string | null;
+  /** legacy */
+  job_role?: string | null;
+
+  interests: OnboardingValues["interests"] | null;
+
+  is_public: boolean | null;
+
+  /** optional flags depending on your schema */
+  can_contact?: boolean | null;
+  has_consented_terms?: boolean | null;
+  has_consented_privacy?: boolean | null;
+};
+
 /* ---------- Component ---------- */
 export default function OnboardingForm({
   submitLabel = "Save & continue",
@@ -88,6 +127,7 @@ export default function OnboardingForm({
         return;
       }
       if (!alive) return;
+
       setEmail(user.email ?? "");
 
       const { data: profile } = await supabase
@@ -98,27 +138,29 @@ export default function OnboardingForm({
 
       if (!alive || !profile) return;
 
+      const p = profile as ProfileDB;
+
       form.reset({
-        full_name: profile.full_name ?? "",
-        phone_e164: (profile as any).phone_e164 ?? (profile as any).phone ?? "",
-        city: profile.city ?? "",
-        country: profile.country ?? "",
-        avatar_url: profile.avatar_url ?? null,
-        graduation_year: profile.graduation_year ?? CURRENT_YEAR,
-        degree: (profile.degree as OnboardingValues["degree"]) ?? DEGREES[0],
+        full_name: p.full_name ?? "",
+        phone_e164: p.phone_e164 ?? p.phone ?? "",
+        city: p.city ?? "",
+        country: p.country ?? "",
+        avatar_url: p.avatar_url ?? null,
+        graduation_year: p.graduation_year ?? CURRENT_YEAR,
+        degree: (p.degree as OnboardingValues["degree"]) ?? DEGREES[0],
         branch:
-          ((profile as any).department ??
-            (profile as any).branch) as OnboardingValues["branch"] ?? BRANCHES[0],
+          (p.branch as OnboardingValues["branch"]) ??
+          (p.department as OnboardingValues["branch"]) ??
+          BRANCHES[0],
         employment_type:
-          (profile.employment_type as OnboardingValues["employment_type"]) ??
-          EMPLOYMENT_TYPES[0],
-        company: profile.company ?? "",
-        designation: (profile as any).designation ?? (profile as any).job_role ?? "",
-        interests: (profile.interests as OnboardingValues["interests"]) ?? [],
-        is_public: profile.is_public ?? true,
-        can_contact: (profile as any).can_contact ?? true,
-        has_consented_terms: (profile as any).has_consented_terms ?? false,
-        has_consented_privacy: (profile as any).has_consented_privacy ?? false,
+          (p.employment_type as OnboardingValues["employment_type"]) ?? EMPLOYMENT_TYPES[0],
+        company: p.company ?? "",
+        designation: p.designation ?? p.job_role ?? "",
+        interests: (p.interests as OnboardingValues["interests"]) ?? [],
+        is_public: p.is_public ?? true,
+        can_contact: p.can_contact ?? true,
+        has_consented_terms: p.has_consented_terms ?? false,
+        has_consented_privacy: p.has_consented_privacy ?? false,
       });
     })();
     return () => {
@@ -128,7 +170,7 @@ export default function OnboardingForm({
   }, []);
 
   async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+    const file = e.currentTarget.files?.[0];
     if (!file) return;
     setUploading(true);
     try {
@@ -140,18 +182,14 @@ export default function OnboardingForm({
       const ext = file.name.split(".").pop() || "jpg";
       const path = `avatars/${user.id}/${Date.now()}.${ext}`;
 
-      const { error: upErr } = await supabase.storage
-        .from("avatars")
-        .upload(path, file, {
-          cacheControl: "3600",
-          upsert: true,
-        });
+      const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, {
+        cacheControl: "3600",
+        upsert: true,
+      });
       if (upErr) throw upErr;
 
       const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
       form.setValue("avatar_url", pub.publicUrl, { shouldDirty: true });
-      // no toast spam while typing; keep it subtle
-      // toast.success("Avatar uploaded");
     } catch (err: unknown) {
       toast.error(getErrorMessage(err) || "Failed to upload avatar");
     } finally {
@@ -159,7 +197,7 @@ export default function OnboardingForm({
     }
   }
 
-  async function onSubmit(values: OnboardingValues) {
+  async function onSubmit(values: OnboardingValues): Promise<void> {
     try {
       const {
         data: { user },
@@ -412,7 +450,7 @@ export default function OnboardingForm({
                       const curr = new Set<OnboardingValues["interests"][number]>(
                         form.getValues("interests") ?? []
                       );
-                      if (e.target.checked) curr.add(opt);
+                      if (e.currentTarget.checked) curr.add(opt);
                       else curr.delete(opt);
                       setValue(
                         "interests",
@@ -477,7 +515,11 @@ export default function OnboardingForm({
             )}
 
             <label className="flex items-center gap-2">
-              <input type="checkbox" {...register("has_consented_privacy")} disabled={isSubmitting} />
+              <input
+                type="checkbox"
+                {...register("has_consented_privacy")}
+                disabled={isSubmitting}
+              />
               <span className="text-sm">
                 I agree to the <a href="/privacy" className="underline">Privacy Policy</a>
               </span>
